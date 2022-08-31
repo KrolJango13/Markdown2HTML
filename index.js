@@ -1,6 +1,6 @@
 const MDElementQueries = {
     heading: (size) => RegExp(`^#{${size}} .*$`),
-    link: /\[(.*)\]\((.*)\)/g,
+    link: /\[(.*)\]\(([^ ]*) ?"?([^"]*)"?\)/g,
     bold: /(?<!\*)\*\*([^\*]+)\*\*(?!\*)/g,
     italic: /(?<!\*)\*([^\*]+)\*(?!\*)/g,
     boldItalic: /(?<!\*)\*{3}([^\*]+)\*{3}(?!\*)/g,
@@ -9,7 +9,8 @@ const MDElementQueries = {
     ulist: /(?:(?<=^|\n)- .*\n)+/g,
     ulistItems: /(?<=^|\n)- (.*)/g,
     olist: /(?:(?<=^|\n)\d+ .*\n)+/g,
-    olistItems: /(?<=^|\n)\d+ (.*)\n/g
+    olistItems: /(?<=^|\n)\d+ (.*)\n/g,
+    hr: /(?<=^|\n)[\-*_]{3,}(?=$|\n)/g
 }
 
 class MDElement extends Element {
@@ -84,5 +85,83 @@ class MDItalicElement extends MDBasicTextElement {
         var htmlItalic = document.createElement("i");
         htmlItalic.textContent = this._text;
         return htmlItalic;
+    }
+}
+
+class MDListElement extends MDElement {
+    _items;
+    constructor(...items){
+        this._items = items;
+    }
+    getItem(index){
+        return this._items[index];
+    }
+    setItem(index,value){
+        this._items[index] = value;
+    }
+    addItem(value){
+        this._items.push(value);
+    }
+    
+    toString(toStrFunc = (x,i) => x.toString()){
+        var str = "";
+        for(var i = 0; i < this._items.length; i++){
+            str += toStrFunc(this._items[i], i);
+        }
+        return str;
+    }
+    
+    toHTML(listType){
+        var htmlList = document.createElement(listType);
+        for(var item of this._items){
+            var li = document.createElement("li");
+            li.append(item.toHTML());
+            htmlList.append(li);
+        }
+        return htmlList;
+    }
+}
+
+class MDUListElement extends MDListElement {
+    toString(){
+        return super.toString((x,i) => `- ${x.toString()}`);
+    }
+    toHTML(){
+        return super.toHTML("ul");
+    }
+}
+
+class MDOListElement extends MDListElement {
+    toString(){
+        return super.toString((x,i) => `${i.toString()}. ${x.toString()}`);
+    }
+    toHTML(){
+        return super.toHTML("ol");
+    }
+}
+
+class MDBlockQuoteElement extends MDTextElement {
+    toString(){
+        return this._text.split("\n").map(x => `> ${x}`).join("\n");
+    }
+    toHTML(){
+        var htmlBQ = document.createElement("blockquote");
+        htmlBQ.textContent = this._text;
+        return htmlBQ;
+    }
+}
+
+class MDHorizontalRuleElement extends MDElement {
+    toString(char = "-", length = 3){
+        if(!["-","*","_"].includes(char)){
+            char = "-"
+        }
+        if(length < 3){
+            length = 3;
+        }
+        return char.repeat(length);
+    }
+    toHTML(){
+        return document.createElement("hr");
     }
 }
